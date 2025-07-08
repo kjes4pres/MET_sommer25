@@ -1,5 +1,9 @@
 '''
-...
+Pre-processing module for windmill analysis.
+
+* Open datasets
+* Reading in and opening turbine coordinates
+* Computing the Rossby radius
 '''
 
 import xarray as xr
@@ -121,5 +125,7 @@ def rossby_radius(f, rho, z_w, grid):
     
     # WKB approx. of Rossby radius
     R = (1 / (np.abs(f) * np.pi)) * N_int
+
+    R = R.mean(dim='ocean_time')
 
     return R
