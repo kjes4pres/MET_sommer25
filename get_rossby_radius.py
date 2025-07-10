@@ -1,8 +1,10 @@
 '''
 Module for calculating the Rossby radius of deformation.
-
-
 '''
+
+import xroms
+import numpy as np
+import xarray as xr
 
 def rossby_radius(f, rho, z_w, grid):
     '''
