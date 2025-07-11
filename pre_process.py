@@ -38,9 +38,29 @@ def open_experiment(turb, exp_number, num_of_days):
     
     # Open the datasets from the constructed paths
     ds = xroms.open_mfnetcdf(paths)
-    ds, xgrid = xroms.roms_dataset(ds, include_cell_volume=True)
+    ds, grid = xroms.roms_dataset(ds, include_cell_volume=True)
+    #ds.xroms.set_grid(xgrid)
 
-    return ds, xgrid
+    return ds, grid
+
+def open_experiment_for_deformation_radius(turb, exp_number, num_of_days, variables):
+    '''
+    Open datasets for Rossby deformation radius calculation.
+    Subsets the datasets to only include relevant variables.
+
+    Parameters:
+    turb (bool): If True, open turbine experiment data. If False, open reference data.
+    exp_number (int or str): The experiment number (e.g., 02, 03, 04, etc.).
+    num_of_days (int): The number of days (files) to open.
+    vars (list): List of variable names to include in the dataset.
+    '''
+    ds = open_experiment(turb, exp_number, num_of_days)
+
+    ds_sub = ds[variables]
+
+    del ds
+   
+    return ds_sub
 
 
 def get_turbine_coords(path_to_coords):
@@ -102,7 +122,7 @@ def get_windpark_midpoint_indices(ds, target_lon, target_lat):
     j_loc (int): The index of the closest latitude.
     '''
     # Find the index of the closest longitude and latitude
-    i_loc, j_loc = ds.temp.xroms.argsel2d(target_lon, target_lat)
+    i_loc, j_loc = ds.rho.xroms.argsel2d(target_lon, target_lat)
 
     return i_loc, j_loc
 
