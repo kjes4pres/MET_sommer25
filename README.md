@@ -1,5 +1,5 @@
-# MET_sommer25
-Workspace for summer job at the Meteorological Institute of Norway, 2025.
+# Workspace for summer job at the Meteorological Institute of Norway, 2025.
+__Kjersti Stangeland, July 2025__
 
 ### Overview of contents
 
