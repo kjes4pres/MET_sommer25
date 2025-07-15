@@ -199,3 +199,4 @@ output_bdr/
 # For sending jobs to ppi
 qsub.sh
 qsub2.sh
+logs/
