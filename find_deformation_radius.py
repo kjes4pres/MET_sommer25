@@ -21,7 +21,7 @@ import time
 from density import dens
 
 def main():
-    files = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference/')
+    base_path = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference/')
     months = {
     "02": 27,  # February
     "03": 31,  # March
@@ -30,11 +30,13 @@ def main():
     "06": 30   # June
     }
 
-for month, days in months.items():
-    for day in range(1, days + 1): 
-        day_str = f"{day:04}"
-        file_path = f'/REF-{month}/norkyst_avg_{day_str}.nc'
-        files.append(file_path)
+    files=[]
+
+    for month, days in months.items():
+        for day in range(1, days + 1): 
+            day_str = f"{day:04}"
+            file_path = f'/REF-{month}/norkyst_avg_{day_str}.nc'
+            files.append(base_path[0]+file_path)
 
     #files = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference//REF-06/norkyst_avg_0001.nc')
     for f in files:
