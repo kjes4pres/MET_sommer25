@@ -195,3 +195,7 @@ cython_debug/
 
 # Folder for netcdf files - produced when computing rossby radius
 output_bdr/
+
+# For sending jobs to ppi
+qsub.sh
+qsub2.sh
