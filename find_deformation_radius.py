@@ -21,7 +21,7 @@ import time
 from density import dens
 
 def main():
-    base_path = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference/')
+    base_path = glob('/lustre/storeB/project/nwp/havvind/hav/results/experiment/')
     months = {
     "02": 27,  # February
     "03": 31,  # March
@@ -35,7 +35,7 @@ def main():
     for month, days in months.items():
         for day in range(1, days + 1): 
             day_str = f"{day:04}"
-            file_path = f'/REF-{month}/norkyst_avg_{day_str}.nc'
+            file_path = f'/EXP-{month}/norkyst_avg_{day_str}.nc'
             files.append(base_path[0]+file_path)
 
     #files = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference//REF-06/norkyst_avg_0001.nc')
@@ -81,10 +81,10 @@ def bvf_calc(mfile):
     # Making a file to write to
     #outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_bdr/' + mfile.split('/')[-1].replace('.nc',f'__brr.nc')
 
-    ref_part = mfile.split('reference//')[-1].split('/')[0].replace('-', '_')  # 'REF-02' to 'REF_02'
+    ref_part = mfile.split('experiment//')[-1].split('/')[0].replace('-', '_')  # 'REF-02' to 'REF_02'
     norkyst_part = mfile.split('/')[-1][:-3]  # Get 'norkyst_avg_0001' without '.nc'
     filename = f"{ref_part}_{norkyst_part}_brr.nc"
-    outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_bdr/' + filename
+    outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_bdr/EXP/' + filename
 
     rootgrp = Dataset(outputf, 'w')
     time =  rootgrp.createDimension("ocean_time", None)
