@@ -16,9 +16,9 @@ from netCDF4 import Dataset
 import numpy as np
 from scipy.interpolate import griddata
 from glob import glob
-from N2 import N2
+from Rossby_deformation.N2 import N2
 import time
-from density import dens
+from Rossby_deformation.density import dens
 
 def main():
     base_path = glob('/lustre/storeB/project/nwp/havvind/hav/results/experiment/')
