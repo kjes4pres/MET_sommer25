@@ -9,6 +9,11 @@ and lastly writing the radius and integrated buoyancy frequency to a netcdf file
 
 Code and logic strongly inspired by A. K. Sperrevik:
 '/home/annks/Projects/LoVe'
+
+References:
+Sperrevik, A. K., J. Röhrs, and K. H. Christensen (2017), 
+Impact of data assimilation on Eulerian versus Lagrangian estimates of upper ocean transport, 
+J. Geophys. Res. Oceans, 122, 5445–5457, doi:10.1002/2016JC012640.
 '''
 
 from roppy import SGrid
