@@ -69,11 +69,6 @@ def calc_mld(pot_dens, z):
 
 
 
-    
-
-
-
-
 def bvf_calc(mfile):
     print(mfile)
     
