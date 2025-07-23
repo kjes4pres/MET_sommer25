@@ -1,36 +1,19 @@
 '''
 ---Kjersti Stangeland, July 2025---
 
-Module for reading in data from Norkyst v3 (daily files),
-interpolating salt and potential temperature from s-levels to z-depths, 
-calculating potentential density, mixed layer depth,
-and lastly writing the radius and integrated buoyancy frequency to a netcdf file.
-
-Code and logic strongly inspired by A. K. Sperrevik:
-'/home/annks/Projects/LoVe'
-
 Here the potential density threshold method is used to calculate MLD, with a threshold of 0.03 kgm⁻3. 
 
-References:
-Sperrevik, A. K., J. Röhrs, and K. H. Christensen (2017), 
-Impact of data assimilation on Eulerian versus Lagrangian estimates of upper ocean transport, 
-J. Geophys. Res. Oceans, 122, 5445–5457, doi:10.1002/2016JC012640.
-
-Treguier, A. M., de Boyer Montégut, C., Bozec, A., Chassignet, E. P., Fox-Kemper, B., McC. Hogg, A., 
-Iovino, D., Kiss, A. E., Le Sommer, J., Li, Y., Lin, P., Lique, C., Liu, H., Serazin, G., Sidorenko, D., 
-Wang, Q., Xu, X., and Yeager, S.: The mixed-layer depth in the Ocean Model 
-Intercomparison Project (OMIP): impact of resolving mesoscale eddies, Geosci. Model Dev., 16, 3849–3872, 
-https://doi.org/10.5194/gmd-16-3849-2023, 2023.
 '''
-
-
 from roppy import SGrid
 from netCDF4 import Dataset
 import numpy as np
 from scipy.interpolate import griddata
 from glob import glob
-from Rossby_deformation.N2 import N2
 import time
+import xarray as xr
+import sys
+import os
+sys.path.append('/home/kjsta7412/sommer_25/MET_sommer25')
 from Rossby_deformation.density import dens
 
 def main():
@@ -51,32 +34,51 @@ def main():
             file_path = f'/REF-{month}/norkyst_avg_{day_str}.nc'
             files.append(base_path[0]+file_path) """
 
-    files = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference//REF-06/norkyst_avg_0001.nc')
+    files = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference//REF-02/norkyst_avg_0001.nc')
+
     for f in files:
         print(f)
-        bvf_calc(f)
+        calc_mld(f)
 
-def calc_mld(pot_dens, z):
-    '''
-    
-    '''
-    # the mixed layer depth is the depth where the potential density equals the surface - a threshold
-    thres = pot_den[0] - 0.03  # [kgm^⁻3]
+def MLD(pot_dens, z):
+    """
+    Calculate Mixed Layer Depth (MLD) based on potential density profile and depth.
 
-    mld = xr.where(pot_dens > thres)
+    Parameters:
+    - pot_dens: 1D numpy array of potential density [kg/m^3]
+    - z: 1D numpy array of corresponding depth levels [m] (negative downward)
 
-    return mld
+    Returns:
+    - mld: scalar value of MLD [m], or np.nan if undefined
+    """
+    # Remove NaNs
+    valid = ~np.isnan(pot_dens)
+    pot_dens = pot_dens[valid]
+    z = z[valid]
 
+    if len(pot_dens) == 0:
+        return np.nan
 
+    # Surface density
+    surface_density = pot_dens[0]
+    threshold = surface_density + 0.03  # MLD is where density exceeds surface + 0.03
 
-def bvf_calc(mfile):
+    # Find where density exceeds threshold
+    exceed = np.where(pot_dens >= threshold)[0]
+
+    if exceed.size == 0:
+        return z[-1]  # no depth exceeds threshold
+
+    # Return the first depth where threshold is exceeded
+    return z[exceed[0]]
+
+def calc_mld(mfile):
     print(mfile)
     
     ds = Dataset(mfile)
     grid = SGrid(ds) 
 
     # Depths to interpolate to
-    # Depth levels from Annks
     zlevs = np.arange(0,51,1)
     zlevs = np.insert(zlevs,len(zlevs),values=np.arange(52,102,2), axis =0)
     zlevs = np.insert(zlevs,len(zlevs),values=np.arange(105,305,5), axis =0)
@@ -96,32 +98,37 @@ def bvf_calc(mfile):
     ocean_time = ds.variables['ocean_time']
     salt  = ds.variables['salt'][:]
     temp = ds.variables['temp'][:]
-    f = ds.variables['f'][:]
     mask = grid.mask_rho[:,:]
 
-    tmpm = np.ones([1, salt.shape[2], salt.shape[3]])*np.nan  # Temporary array holding mld
-    
     # Making a file to write to
-    outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_mld/tests/' + mfile.split('/')[-1].replace('.nc',f'__mld.nc')
+    #outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_mld/tests/' + mfile.split('/')[-1].replace('.nc',f'_mld.nc')
 
-    """ ref_part = mfile.split('reference//')[-1].split('/')[0].replace('-', '_')  # 'REF-02' to 'REF_02'
+    ref_part = mfile.split('reference//')[-1].split('/')[0].replace('-', '_')  # 'REF-02' to 'REF_02'
     norkyst_part = mfile.split('/')[-1][:-3]  # Get 'norkyst_avg_0001' without '.nc'
-    filename = f"{ref_part}_{norkyst_part}_brr.nc"
-    outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_bdr/REF/' + filename """
+    filename = f"{ref_part}_{norkyst_part}_mld.nc"
+    outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_mld/tests/' + filename
 
     rootgrp = Dataset(outputf, 'w')
     time =  rootgrp.createDimension("ocean_time", None)
     X = rootgrp.createDimension("xi_rho", len(ds.dimensions['xi_rho']))
     Y = rootgrp.createDimension("eta_rho", len(ds.dimensions['eta_rho']))
+    z = rootgrp.createDimension('z_rho', len(zlevs))
 
     otime = rootgrp.createVariable("ocean_time","f8",("ocean_time",), zlib=True)
     otime[:] = ocean_time[-1]
 
-    mld = rootgrp.createVariable("mld","f8",("ocean_time","eta_rho","xi_rho",),  zlib=True)
+    pd = rootgrp.createVariable("pd","f8",("ocean_time", 'z_rho',"eta_rho", "xi_rho",),  zlib=True)
+    pd.long_name= "Potential density"
+    pd.units = "kg meter-3"
+
+    mld  = rootgrp.createVariable("mld","f8",("ocean_time","eta_rho","xi_rho",),  zlib=True)
     mld.long_name= "Mixed layer depth"
     mld.units = "meter"
-
     rootgrp.close()
+
+    # Temporary arrays
+    tmpd = np.full((1, zlevs.size, salt.shape[2], salt.shape[3]), np.nan)  # Potential density
+    tmpm = np.full((1, salt.shape[2], salt.shape[3]), np.nan)  # Mixed layer depth
 
     ds.close()
 
@@ -131,35 +138,39 @@ def bvf_calc(mfile):
             if not mask[y, x]:  # skipping land points
                continue
 
-            tmpm[0,y,x] = 0    
+            t = -1
             # Filtering out local water depth on the zlevs
             # Where zlevs is shallower than z_r -> true
-            tmpmz = zlevs[np.where(zlevs[:]>z_r[:,y,x].min())].squeeze()  # z-levels to calculate potential density on
+            valid_z_mask = zlevs > z_r[:, y, x].min()
+            tmpnz = zlevs[valid_z_mask]
 
-            if 1:
-               t = -1
-               # Adding first and last value to each end of the array to match length of z-levels (tmpmz)
-               tmpmS = salt[t,:,y,x]; tmpmS = np.append(tmpmS,tmpmS[-1]); tmpmS = np.insert(tmpmS,0,values=tmpmS[0],axis=0)
-               tmpmT = temp[t,:,y,x]; tmpmT = np.append(tmpmT,tmpmT[-1]); tmpmT = np.insert(tmpmT,0,values=tmpmT[0],axis=0)
-               # Interpolating to z-levels
-               tempZ = griddata(z_r[:,y,x], tmpmT[:], tmpmz)
-               saltZ = griddata(z_r[:,y,x], tmpmS[:], tmpmz)
+            tmpnS = np.insert(salt[t, :, y, x], 0, salt[t, 0, y, x])
+            tmpnS = np.append(tmpnS, salt[t, -1, y, x])
 
-               # Getting the potential density 
-               densm = dens(saltZ, tempZ, np.zeros_like(tempZ)).squeeze()
-               
-               # Caluclating mixed layer depth
+            tmpnT = np.insert(temp[t, :, y, x], 0, temp[t, 0, y, x])
+            tmpnT = np.append(tmpnT, temp[t, -1, y, x])
 
-               tmpm[0,y,x] = calc_mld()
+            saltZ = griddata(z_r[:, y, x], tmpnS, tmpnz)
+            tempZ = griddata(z_r[:, y, x], tmpnT, tmpnz)
+
+            densZ = dens(saltZ, tempZ, np.zeros_like(tempZ))
+
+            dens_profile = np.full(zlevs.shape, np.nan)
+            dens_profile[valid_z_mask] = densZ
+
+            tmpd[0, :, y, x] = dens_profile
+            tmpm[0, y, x] = MLD(dens_profile, zlevs)
                
 
     rootgrp = Dataset(outputf, 'r+')
     mld = rootgrp.variables['mld']
+    pd = rootgrp.variables['pd']
     mld[:] = tmpm[:]
+    pd[:] = tmpd[:]
     rootgrp.close()
 
-
     return
+
 if __name__ == "__main__":
     start_time = time.time()
     main()
@@ -168,3 +179,9 @@ if __name__ == "__main__":
     minutes = int(runtime // 60)
     seconds = runtime % 60
     print(f"Script runtime: {minutes} minutes and {seconds:.4f} seconds")
+
+
+
+
+
+
