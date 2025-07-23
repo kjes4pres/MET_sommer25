@@ -1,10 +1,19 @@
-import numpy as np
+from datetime import datetime, timedelta
+from glob import glob
+
+import cartopy
+import cartopy.crs as ccrs
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+import cmocean.cm as cmo
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pyresample
 import xarray as xr
 import xroms
-from datetime import datetime
-from roppy import SGrid
 from netCDF4 import Dataset
+from roppy import SGrid
+from scipy.interpolate import griddata
 
 
 def find_indices_of_point(grid, target_lon, target_lat):
@@ -76,7 +85,6 @@ def monthly_mean(files):
     full_ds = convert_ocean_time(full_ds)
 
     ds_monthly = full_ds.resample(ocean_time='1M').mean(dim='ocean_time')
-
     
     return ds_monthly
 
@@ -133,6 +141,8 @@ def move_distance_from_point(start_lon, start_lat, distance):
 
     return east_lon, west_lon, north_lat, south_lat
 
+# ----- These 3 functions go together-----
+# Masking method
 
 def make_region_ds(files, grid, area_lon, area_lat):
     '''
@@ -141,9 +151,7 @@ def make_region_ds(files, grid, area_lon, area_lat):
     full_ds = xr.open_mfdataset(files)
 
     # Convert ocean_time to datetime
-    ocean_time = full_ds.ocean_time.values
-    datetime_array = [datetime.fromtimestamp(ot) for ot in ocean_time]
-    full_ds['ocean_time'] = ('ocean_time', datetime_array)
+    #full_ds = convert_ocean_time(full_ds)
 
     # Load grid lat/lon
     fid = Dataset('/lustre/storeB/project/nwp/havvind/hav/results/reference/REF-02/norkyst_avg_0001.nc')
@@ -165,9 +173,9 @@ def make_region_ds(files, grid, area_lon, area_lat):
     mask_da = xr.DataArray(mask, dims=('eta_rho', 'xi_rho'))
 
     # Apply mask
-    masked_ds = full_ds.where(mask_da, drop=True)
+    masked_da = full_ds.where(mask_da, drop=True)
 
-    return masked_ds
+    return area_lon, area_lat, masked_da
 
 
 def expand_box_around_farm(area_lon, area_lat, R1):
@@ -176,36 +184,69 @@ def expand_box_around_farm(area_lon, area_lat, R1):
     Returns: new_area_lon, new_area_lat
     '''
     
-    
     center_lat = (area_lat[0] + area_lat[1]) / 2
     lat_rad = np.radians(center_lat)
     meters_per_degree_longitude = 111321.4 * np.cos(lat_rad)
 
-    delta_lon = (R1 * 15) / meters_per_degree_longitude
-    delta_lat = (R1 * 15) / 111320
+    delta_lon = (R1 * 30) / meters_per_degree_longitude
+    delta_lat = (R1 * 30) / 111320
 
     new_area_lon = [area_lon[0] - delta_lon, area_lon[1] + delta_lon]
     new_area_lat = [area_lat[0] - delta_lat, area_lat[1] + delta_lat]
 
     return new_area_lon, new_area_lat
 
-def new_make_study_area(files, grid, area_lon, area_lat, R1):
+def make_study_area(files, grid, area_lon, area_lat, R1):
     new_area_lon, new_area_lat = expand_box_around_farm(area_lon, area_lat, R1)
     return make_region_ds(files, grid, new_area_lon, new_area_lat)
 
+# ------------------------------------------------------
+# Below function works with expand_area_around_farm
+# Slicing method
+def rotate_point(grid, point, angle):
+    """
+    Rotate a point (lon, lat) around the origin (0, 0) based on the specified angle.
+    """
+    y, x = find_indices_of_point(grid, point[0], point[1])
+
+    angle = angle[y, x]
+    rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)],
+                                 [np.sin(angle), np.cos(angle)]])
+    
+
+    return rotation_matrix.dot(point)
 
 
-def make_region_ds_1(files, grid, area_lon, area_lat):
-    '''
-    Makes a geographic subset of datasets.
-    area_lon:[min_lon, max_lon]
+def make_region_dataset(files, grid, area_lon, area_lat, R1):
+    """
+    Creates a geographic subset of datasets.
+    
+    If R1 is provided, expands the area by 5*R1 around the given box (for wind park).
+    Otherwise, uses the given lon/lat bounds directly.
+    
+    area_lon: [min_lon, max_lon]
     area_lat: [min_lat, max_lat]
-    '''
-    full_ds = xr.open_mfdataset(files)
+    """
 
-    # Converting ocean_time from seconds since initialization to datetime values
+    full_ds = xr.open_mfdataset(files)
     full_ds = convert_ocean_time(full_ds)
 
+    fid = Dataset('/lustre/storeB/project/nwp/havvind/hav/results/reference/REF-02/norkyst_avg_0001.nc')
+    grid = SGrid(fid)
+    
+    lon = grid.lon_rho
+    lat = grid.lat_rho
+    
+    full_ds = full_ds.assign_coords(
+        lon_rho=(['eta_rho', 'xi_rho'], lon),
+        lat_rho=(['eta_rho', 'xi_rho'], lat)
+    )
+
+    # Expand area if R1 is given
+    if R1 is not None:
+        area_lon, area_lat = expand_box_around_farm(area_lon, area_lat, R1)
+
+    # Find grid indices of points
     j1, i1 = find_indices_of_point(grid, area_lon[0], area_lat[0])
     j2, i2 = find_indices_of_point(grid, area_lon[1], area_lat[0])
     j3, i3 = find_indices_of_point(grid, area_lon[1], area_lat[1])
@@ -213,110 +254,78 @@ def make_region_ds_1(files, grid, area_lon, area_lat):
 
     j_min = np.min([j1, j2, j3, j4])
     j_max = np.max([j1, j2, j3, j4])
-
     i_min = np.min([i1, i2, i3, i4])
     i_max = np.max([i1, i2, i3, i4])
-    
+
     ds_area = full_ds.isel(eta_rho=slice(j_min, j_max), xi_rho=slice(i_min, i_max))
 
     return ds_area
 
-def make_study_area(files, grid, area_lon, area_lat, R1):
-    '''
-    Makes a subset of dataset.
-    Takes in a box around the windpark and adds 5*R1 in all directions.
-    '''
-    full_ds = xr.open_mfdataset(files)
 
-    # Converting ocean_time from seconds since initialization to datetime values
+# Victors approach -----
+def v2_make_region_dataset(files, grid, area_lon, area_lat, R1):
+    """
+    Creates a geographic subset of datasets.
+    
+    If R1 is provided, expands the area by 5*R1 around the given box (for wind park).
+    Otherwise, uses the given lon/lat bounds directly.
+    
+    area_lon: [min_lon, max_lon]
+    area_lat: [min_lat, max_lat]
+    """
+
+    full_ds = xr.open_mfdataset(files)
     full_ds = convert_ocean_time(full_ds)
 
-    # Load grid lat/lon
     fid = Dataset('/lustre/storeB/project/nwp/havvind/hav/results/reference/REF-02/norkyst_avg_0001.nc')
     grid = SGrid(fid)
-
+    
     lon = grid.lon_rho
     lat = grid.lat_rho
-
+    
     full_ds = full_ds.assign_coords(
         lon_rho=(['eta_rho', 'xi_rho'], lon),
         lat_rho=(['eta_rho', 'xi_rho'], lat)
     )
 
-    # original box around windpark
-    point_1 = (area_lon[1], area_lat[1])
-    point_2 = (area_lon[0], area_lat[1])
-    point_3 = (area_lon[0], area_lat[0])
-    point_4 = (area_lon[1], area_lat[0])
+    # Expand area
+    area_lon_exp, area_lat_exp = expand_box_around_farm(area_lon, area_lat, R1)
 
-    # distance in meters to expand box with
-    distance = R1*5
+    ds_geo = pyresample.geometry.GridDefinition(lons=lon, lats=lat)
+    pos_geo = pyresample.geometry.SwathDefinition(lons=[area_lon[0], area_lon[1], area_lon[1], area_lon[0]], 
+                                                  lats=[area_lat[0], area_lat[0], area_lat[1], area_lat[1]])
 
-    # east, west, north, south coordinates if moving distance in every direction from point
-    e1, w1, n1, s1 = move_distance_from_point(point_1[0], point_1[1], distance)
-    e2, w2, n2, s2 = move_distance_from_point(point_2[0], point_2[1], distance)
-    e3, w3, n3, s3 = move_distance_from_point(point_3[0], point_3[1], distance)
-    e4, w4, n4, s4 = move_distance_from_point(point_4[0], point_4[1], distance)
+    _, valid_output_index, index_array, distance_array = pyresample.kd_tree.get_neighbour_info(
+    source_geo_def=ds_geo,target_geo_def=pos_geo,
+    radius_of_influence=800,neighbours=1)
 
-    # New points - expanded box
-    point_1_exp = (e1, n1)
-    point_2_exp = (w2, n2)
-    point_3_exp = (w3, s3)
-    point_4_exp = (e4, s4)
+    index_array_2d = np.unravel_index(index_array, ds_geo.shape)
+    (eta_indices, xi_indices) = index_array_2d[0], index_array_2d[1]
 
+    eta_min, eta_max = eta_indices.min(), eta_indices.max()  # 256–603
+    xi_min, xi_max   = xi_indices.min(), xi_indices.max()    # 19–368
 
-    j1, i1 = find_indices_of_point(grid, point_1_exp[0], point_1_exp[1])
-    j2, i2 = find_indices_of_point(grid, point_2_exp[0], point_2_exp[1])
-    j3, i3 = find_indices_of_point(grid, point_3_exp[0], point_3_exp[1])
-    j4, i4 = find_indices_of_point(grid, point_4_exp[0], point_4_exp[1])
-
-    j_min = np.min([j1, j2, j3, j4])
-    j_max = np.max([j1, j2, j3, j4])
-
-    i_min = np.min([i1, i2, i3, i4])
-    i_max = np.max([i1, i2, i3, i4])
-
-    # Rotate
-    
-    ds_area = full_ds.isel(eta_rho=slice(j_min, j_max), xi_rho=slice(i_min, i_max))
-
-    return ds_area
-
-
-def test_make_a_region(files, grid, area_lon, area_lat, R1):
-    full_ds = xr.open_mfdataset(files)
-
-    # Converting ocean_time from seconds since initialization to datetime values
-    full_ds = convert_ocean_time(full_ds)
-
-    # Load grid lat/lon
-    fid = Dataset('/lustre/storeB/project/nwp/havvind/hav/results/reference/REF-02/norkyst_avg_0001.nc')
-    grid = SGrid(fid)
-
-    lon = grid.lon_rho
-    lat = grid.lat_rho
-
-    full_ds = full_ds.assign_coords(
-        lon_rho=(['eta_rho', 'xi_rho'], lon),
-        lat_rho=(['eta_rho', 'xi_rho'], lat)
+    cropped_ds = full_ds.isel(
+    eta_rho=slice(eta_min, eta_max + 1),
+    xi_rho=slice(xi_min, xi_max + 1)
     )
 
-    new_area_lon, new_area_lat = expand_box_around_farm(area_lon, area_lat, R1)
+    dlat = 0.005  # ~1 km at mid-latitudes
+    dlon = 0.005
 
-    j1, i1 = find_indices_of_point(grid, new_area_lon[1], new_area_lat[1])
-    j2, i2 = find_indices_of_point(grid, new_area_lon[0], new_area_lat[1])
-    j3, i3 = find_indices_of_point(grid, new_area_lon[0], new_area_lat[0])
-    j4, i4 = find_indices_of_point(grid, new_area_lon[1], new_area_lat[0])
+    lat = np.arange(area_lat_exp[0], area_lat_exp[1] + dlat, dlat)
+    lon = np.arange(area_lon_exp[0], area_lon_exp[1] + dlon, dlon)
 
-    j_min = np.min([j1, j2, j3, j4])
-    j_max = np.max([j1, j2, j3, j4])
+    # Meshgrid of expanded area
+    lon2d, lat2d = np.meshgrid(lon, lat)
 
-    i_min = np.min([i1, i2, i3, i4])
-    i_max = np.max([i1, i2, i3, i4])
+    mod_grd = np.stack([cropped_ds.lon_rho.values.ravel(), cropped_ds.lat_rho.values.ravel()], -1)
+    interp_dir = griddata(mod_grd,  cropped_ds.gamma_r.values.ravel(), (lon2d, lat2d), method='nearest')
 
-    ds_area = full_ds.isel(eta_rho=slice(j_min, j_max), xi_rho=slice(i_min, i_max))
 
-    return ds_area
+    return lon2d, lat2d, interp_dir
+
+
 
 
 
