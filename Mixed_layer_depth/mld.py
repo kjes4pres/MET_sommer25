@@ -17,7 +17,7 @@ sys.path.append('/home/kjsta7412/sommer_25/MET_sommer25')
 from Rossby_deformation.density import dens
 
 def main():
-    """ base_path = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference/')
+    base_path = glob('/lustre/storeB/project/nwp/havvind/hav/results/experiment/')
     months = {
     "02": 27,  # February
     "03": 31,  # March
@@ -31,26 +31,29 @@ def main():
     for month, days in months.items():
         for day in range(1, days + 1): 
             day_str = f"{day:04}"
-            file_path = f'/REF-{month}/norkyst_avg_{day_str}.nc'
-            files.append(base_path[0]+file_path) """
+            file_path = f'/EXP-{month}/norkyst_avg_{day_str}.nc'
+            files.append(base_path[0]+file_path)
 
-    files = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference//REF-02/norkyst_avg_0001.nc')
+    #files = glob('/lustre/storeB/project/nwp/havvind/hav/results/reference//REF-02/norkyst_avg_0001.nc')
 
     for f in files:
         print(f)
         calc_mld(f)
 
 def MLD(pot_dens, z):
-    """
+    '''
     Calculate Mixed Layer Depth (MLD) based on potential density profile and depth.
+    MLD is where the potential density exceeds a threshold, here set to be surface
+    potential density + 0.03 kgm-3.
 
     Parameters:
     - pot_dens: 1D numpy array of potential density [kg/m^3]
     - z: 1D numpy array of corresponding depth levels [m] (negative downward)
 
     Returns:
-    - mld: scalar value of MLD [m], or np.nan if undefined
-    """
+    - mld: scalar value of MLD [m], or local water depth if no depth exceeds threshold,
+    meaning full water column is mixed.
+    '''
     # Remove NaNs
     valid = ~np.isnan(pot_dens)
     pot_dens = pot_dens[valid]
@@ -101,12 +104,10 @@ def calc_mld(mfile):
     mask = grid.mask_rho[:,:]
 
     # Making a file to write to
-    #outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_mld/tests/' + mfile.split('/')[-1].replace('.nc',f'_mld.nc')
-
-    ref_part = mfile.split('reference//')[-1].split('/')[0].replace('-', '_')  # 'REF-02' to 'REF_02'
+    ref_part = mfile.split('experiment//')[-1].split('/')[0].replace('-', '_')  # 'REF-02' to 'REF_02'
     norkyst_part = mfile.split('/')[-1][:-3]  # Get 'norkyst_avg_0001' without '.nc'
     filename = f"{ref_part}_{norkyst_part}_mld.nc"
-    outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_mld/tests/' + filename
+    outputf = '/lustre/storeB/users/kjsta7412/havvind/output_mld/EXP/' + filename
 
     rootgrp = Dataset(outputf, 'w')
     time =  rootgrp.createDimension("ocean_time", None)
