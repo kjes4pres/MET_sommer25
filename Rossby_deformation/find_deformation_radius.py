@@ -89,7 +89,7 @@ def bvf_calc(mfile):
     ref_part = mfile.split('experiment//')[-1].split('/')[0].replace('-', '_')  # 'REF-02' to 'REF_02'
     norkyst_part = mfile.split('/')[-1][:-3]  # Get 'norkyst_avg_0001' without '.nc'
     filename = f"{ref_part}_{norkyst_part}_brr.nc"
-    outputf = '/home/kjsta7412/sommer_25/MET_sommer25/output_bdr/EXP/' + filename
+    outputf = '/lustre/storeB/users/kjsta7412/output_bdr/EXP/' + filename
 
     rootgrp = Dataset(outputf, 'w')
     time =  rootgrp.createDimension("ocean_time", None)
