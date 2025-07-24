@@ -113,8 +113,9 @@ def monthly_mean_area(files, grid, area_lon, area_lat):
     
     ds_area = full_ds.isel(eta_rho=slice(j_min, j_max), xi_rho=slice(i_min, i_max))
     R1_area_mean = ds_area.mean(dim=['eta_rho', 'xi_rho'])
+    R1_area_mon_mean = R1_area_mean.resample(ocean_time='1M').mean(dim='ocean_time')
 
-    return R1_area_mean.gamma_r
+    return R1_area_mon_mean.gamma_r
 
 
 def move_distance_from_point(start_lon, start_lat, distance):
