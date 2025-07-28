@@ -100,6 +100,7 @@ def monthly_mean_area(files, grid, area_lon, area_lat):
     # Converting ocean_time from seconds since initialization to datetime values
     full_ds = convert_ocean_time(full_ds)
 
+    # Getting the indices of the area
     j1, i1 = find_indices_of_point(grid, area_lon[0], area_lat[0])
     j2, i2 = find_indices_of_point(grid, area_lon[1], area_lat[0])
     j3, i3 = find_indices_of_point(grid, area_lon[1], area_lat[1])
@@ -111,11 +112,12 @@ def monthly_mean_area(files, grid, area_lon, area_lat):
     i_min = np.min([i1, i2, i3, i4])
     i_max = np.max([i1, i2, i3, i4])
     
+    # Subsetting
     ds_area = full_ds.isel(eta_rho=slice(j_min, j_max), xi_rho=slice(i_min, i_max))
     R1_area_mean = ds_area.mean(dim=['eta_rho', 'xi_rho'])
     R1_area_mon_mean = R1_area_mean.resample(ocean_time='1M').mean(dim='ocean_time')
 
-    return R1_area_mon_mean.gamma_r
+    return R1_area_mon_mean
 
 
 def move_distance_from_point(start_lon, start_lat, distance):
@@ -152,11 +154,11 @@ def make_region_ds(files, grid, area_lon, area_lat):
     full_ds = xr.open_mfdataset(files)
 
     # Convert ocean_time to datetime
-    #full_ds = convert_ocean_time(full_ds)
+    full_ds = convert_ocean_time(full_ds)
 
     # Load grid lat/lon
-    fid = Dataset('/lustre/storeB/project/nwp/havvind/hav/results/reference/REF-02/norkyst_avg_0001.nc')
-    grid = SGrid(fid)
+    #fid = Dataset('/lustre/storeB/project/nwp/havvind/hav/results/reference/REF-02/norkyst_avg_0001.nc')
+    #grid = SGrid(fid)
 
     lon = np.asarray(grid.lon_rho)
     lat = np.asarray(grid.lat_rho)
@@ -184,13 +186,14 @@ def expand_box_around_farm(area_lon, area_lat, R1):
     Expand bounding box (lon/lat) by R1 meters in all directions.
     Returns: new_area_lon, new_area_lat
     '''
+    R1 = R1.values
     
     center_lat = (area_lat[0] + area_lat[1]) / 2
     lat_rad = np.radians(center_lat)
     meters_per_degree_longitude = 111321.4 * np.cos(lat_rad)
 
-    delta_lon = (R1 * 30) / meters_per_degree_longitude
-    delta_lat = (R1 * 30) / 111320
+    delta_lon = (R1 * 25) / meters_per_degree_longitude
+    delta_lat = (R1 * 25) / 111320
 
     new_area_lon = [area_lon[0] - delta_lon, area_lon[1] + delta_lon]
     new_area_lat = [area_lat[0] - delta_lat, area_lat[1] + delta_lat]
