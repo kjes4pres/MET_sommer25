@@ -179,7 +179,7 @@ for i, axs in enumerate(ax[0]):
     axs.legend()
     axs.axhline(y=hmmean_SV_mld_ref[i], color='teal', alpha=0.6, linestyle='--', linewidth=2)
     axs.axhline(y=hmmean_SV_mld_exp[i], color='darkgoldenrod', alpha=0.6, linestyle='--', linewidth=2)
-    axs.grid()
+    #axs.grid()
     #axs.set_xticks(np.linspace(axs.get_xlim()[0], axs.get_xlim()[1], n_xticks))
 
 print('Done with first row of subplots')
@@ -192,7 +192,7 @@ for i, axs in enumerate(ax[1]):
     axs.legend()
     axs.axhline(y=hmmean_NV_mld_ref[i], color='teal', alpha=0.6, linestyle='--', linewidth=2)
     axs.axhline(y=hmmean_NV_mld_exp[i], color='darkgoldenrod', alpha=0.6, linestyle='--', linewidth=2)
-    axs.grid()
+    #axs.grid()
     #axs.set_xticks(np.linspace(axs.get_xlim()[0], axs.get_xlim()[1], n_xticks))
 
 print('done with second row')
