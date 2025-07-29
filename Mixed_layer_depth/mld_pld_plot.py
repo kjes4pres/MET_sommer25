@@ -1,5 +1,6 @@
 import numpy as np
 from glob import glob
+import os
 import sys
 sys.path.append('/home/kjsta7412/sommer_25/MET_sommer25')
 import matplotlib.pyplot as plt
@@ -203,4 +204,4 @@ fig.text(0.5, 0.48, 'Nordvest-C', ha='center', va='center', fontsize=14, fontwei
 
 fig.suptitle('Potential density - Sørvest-F and Nordvest-C', fontsize=16)
 plt.tight_layout(rect=[0, 0, 1, 0.93])
-plt.savefig('Figures/pd_mld_SVF_NVC.png')
+plt.savefig('/home/kjsta7412/sommer_25/MET_sommer25/Figures/pd_mld_SVF_NVC.png')
