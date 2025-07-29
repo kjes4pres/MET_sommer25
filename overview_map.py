@@ -12,6 +12,7 @@ from Rossby_deformation.funcs import *
 from Rossby_deformation.get_turbine_coords import *
 import matplotlib.style as mplstyle
 import cartopy.feature as cfeature
+from matplotlib.lines import Line2D
 
 mplstyle.use(["ggplot", "fast"])
 
@@ -68,7 +69,7 @@ for turbine_coords, color, label in turbine_data:
         turbine_coords.coordinates[:, 1],
         transform=ccrs.PlateCarree(),
         color=color,
-        s=5,
+        s=0.5,
         marker="*",
         label=label,
     )
@@ -149,7 +150,27 @@ ax.plot(
     linewidth=0.8,
 )
 
-plt.legend(loc="upper left")
+# Create custom legend
+legend_elements = [
+    Line2D(
+        [0], [0],
+        marker='*',
+        color='none',
+        label=label,
+        markerfacecolor=color,
+        markersize=8, 
+        markeredgewidth=0 
+    )
+    for _, color, label in turbine_data
+]
+
+legend_elements.insert(
+    0,
+    Line2D([0], [0], linestyle='--', color='gray', linewidth=0.8, label="Norkyst boundary")
+)
+
+ax.legend(handles=legend_elements, loc="upper left")
+
 fig.tight_layout()
-plt.savefig("Figures/overview.png")
+plt.savefig("Figures/overview_farms.png")
 plt.show()
