@@ -165,7 +165,7 @@ hmmean_pd_NV_ref = mmean_pd_ref_NV.mean(dim=['eta_rho', 'xi_rho'])
 hmmean_pd_NV_exp = mmean_pd_exp_NV.mean(dim=['eta_rho', 'xi_rho'])
 
 print('it works so far')
-
+print('starting the plotting')
 
 fig, ax = plt.subplots(2, 5, figsize=(20, 8))
 
@@ -179,7 +179,10 @@ for i, axs in enumerate(ax[0]):
     axs.axhline(y=hmmean_SV_mld_ref[i], color='teal', alpha=0.6, linestyle='--', linewidth=2)
     axs.axhline(y=hmmean_SV_mld_exp[i], color='darkgoldenrod', alpha=0.6, linestyle='--', linewidth=2)
     axs.grid()
-    axs.set_xticks(np.linspace(axs.get_xlim()[0], axs.get_xlim()[1], n_xticks))
+    #axs.set_xticks(np.linspace(axs.get_xlim()[0], axs.get_xlim()[1], n_xticks))
+
+print('Done with first row of subplots')
+print('starting second row')
 
 for i, axs in enumerate(ax[1]):
     axs.plot(hmmean_pd_NV_ref[i, :].values, zlevs, color='teal', label='REF')
@@ -189,7 +192,10 @@ for i, axs in enumerate(ax[1]):
     axs.axhline(y=hmmean_NV_mld_ref[i], color='teal', alpha=0.6, linestyle='--', linewidth=2)
     axs.axhline(y=hmmean_NV_mld_exp[i], color='darkgoldenrod', alpha=0.6, linestyle='--', linewidth=2)
     axs.grid()
-    axs.set_xticks(np.linspace(axs.get_xlim()[0], axs.get_xlim()[1], n_xticks))
+    #axs.set_xticks(np.linspace(axs.get_xlim()[0], axs.get_xlim()[1], n_xticks))
+
+print('done with second row')
+print('adding titles and saving figure')
 
 # Add row titles
 fig.text(0.5, 0.94, 'Sørvest-F', ha='center', va='center', fontsize=14, fontweight='bold')
