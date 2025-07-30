@@ -139,7 +139,7 @@ mmean_mld_exp_SV = exp_SV.mld.resample(ocean_time='1M').mean(dim='ocean_time')
 mmean_mld_ref_NV = ref_NV.mld.resample(ocean_time='1M').mean(dim='ocean_time')
 mmean_mld_exp_NV = exp_NV.mld.resample(ocean_time='1M').mean(dim='ocean_time')
 
-months = ['Feb', 'Mar', 'Apr', 'May', 'Jun']
+months = ['February', 'March', 'April', 'May', 'June']
 
 # Horizontal mean of MLD
 hmmean_SV_mld_ref = mmean_mld_ref_SV.mean(dim=['eta_rho', 'xi_rho'])
@@ -168,16 +168,16 @@ hmmean_pd_NV_exp = mmean_pd_exp_NV.mean(dim=['eta_rho', 'xi_rho'])
 print('it works so far')
 print('starting the plotting')
 
-fig, ax = plt.subplots(2, 5, figsize=(25, 10))
-
+fig, ax = plt.subplots(2, 5, figsize=(20, 12), sharex='row')
 
 for i, axs in enumerate(ax[0]):
     axs.plot(hmmean_pd_SV_ref[i, :].values, zlevs, color='teal', label='REF')
     axs.plot(hmmean_pd_SV_exp[i, :].values, zlevs, color='darkgoldenrod', label='EXP')
-    axs.set_title(months[i])
-    axs.legend()
+    axs.set_title(months[i], fontsize=10)
+    axs.legend(loc='lower left')
     axs.axhline(y=hmmean_SV_mld_ref[i], color='teal', alpha=0.6, linestyle='--', linewidth=2)
     axs.axhline(y=hmmean_SV_mld_exp[i], color='darkgoldenrod', alpha=0.6, linestyle='--', linewidth=2)
+    axs.tick_params(axis='x', labelrotation=60)
 
 print('Done with first row of subplots')
 print('starting second row')
@@ -185,17 +185,18 @@ print('starting second row')
 for i, axs in enumerate(ax[1]):
     axs.plot(hmmean_pd_NV_ref[i, :].values, zlevs, color='teal', label='REF')
     axs.plot(hmmean_pd_NV_exp[i, :].values, zlevs, color='darkgoldenrod', label='EXP')
-    #axs.set_title(months[i])
-    axs.legend()
+    axs.set_title(months[i], fontsize=10)
+    axs.legend(loc='lower left')
     axs.axhline(y=hmmean_NV_mld_ref[i], color='teal', alpha=0.6, linestyle='--', linewidth=2)
     axs.axhline(y=hmmean_NV_mld_exp[i], color='darkgoldenrod', alpha=0.6, linestyle='--', linewidth=2)
+    axs.tick_params(axis='x', labelrotation=60)
 
 print('done with second row')
 print('adding titles and saving figure')
 
-fig.text(0.5, 0.94, 'Sørvest-F', ha='center', va='center', fontsize=14)
-fig.text(0.5, 0.48, 'Nordvest-C', ha='center', va='center', fontsize=14)
+fig.text(0.1, 0.75, 'Sørvest-F', ha='right', va='center', fontsize=14, rotation=90)
+fig.text(0.1, 0.25, 'Nordvest-C', ha='right', va='center', fontsize=14, rotation=90)
 
 fig.suptitle('Potential density', fontsize=16)
-plt.tight_layout(rect=[0, 0, 1, 0.93])
-plt.savefig('/home/kjsta7412/sommer_25/MET_sommer25/Figures/pd_mld_SVF_NVC0.png')
+plt.tight_layout(rect=[0.1, 0.03, 1, 0.95])
+plt.savefig('/home/kjsta7412/sommer_25/MET_sommer25/Figures/pd_mld_SVF_NVC3.png')
