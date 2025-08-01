@@ -11,8 +11,17 @@ from netCDF4 import Dataset
 from Rossby_deformation.get_turbine_coords import get_turbine_coords
 from Rossby_deformation.funcs import *
 
+'''
+A module for plotting monthly mean potential 
+density profiles at Sørvest-F and Nordvest-C, 
+including the  mixed layer depths. 
+
+July 2025, Kjersti Stangeland (kjersti.stangeland@met.no)
+'''
+
 mplstyle.use(['ggplot', 'fast'])
 
+# making a grid object
 path = '/lustre/storeB/project/nwp/havvind/hav/results/experiment/EXP-03/norkyst_avg_0001.nc'
 fid = Dataset(path)
 grid = SGrid(fid)
