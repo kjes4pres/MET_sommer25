@@ -1,6 +1,4 @@
 '''
----Kjersti Stangeland, July 2025---
-
 Module for calculating buoyancy frequency on z-depths.
 
 Code from A. K. Sperrevik:
