@@ -19,7 +19,7 @@ mplstyle.use(["ggplot", "fast"])
 """
 Plots an overview map of the Norkyst v3 domain with all wind farms marked on the map.
 """
-
+# Opening turbine coordinates of each farm
 SV_F = get_turbine_coords(
     "/lustre/storeB/project/nwp/havvind/turbine_coordinates/windfarms_Sorvest_F.txt"
 )
@@ -46,6 +46,7 @@ fig, ax = plt.subplots(
     figsize=(6, 8), subplot_kw={"projection": ccrs.NorthPolarStereo()}
 )
 
+# Background field of model bathymetry
 im = ax.pcolormesh(
     ds.lon_rho, ds.lat_rho, ds.h, transform=ccrs.PlateCarree(), cmap="cmo.deep"
 )
@@ -53,7 +54,7 @@ cbar = plt.colorbar(im, shrink=0.8)
 cbar.set_label("Bathymetry [m]")
 
 
-# Define turbine colors and names for easier management
+# Define turbine colors and names for easier plotting
 turbine_data = [
     (SV_F, "firebrick", "Sørvest-F"),
     (Gol, "darkgoldenrod", "Goliat"),
@@ -63,6 +64,7 @@ turbine_data = [
     (VV_F, "hotpink", "Vestavind-F"),
 ]
 
+# Plot all turbines
 for turbine_coords, color, label in turbine_data:
     ax.scatter(
         turbine_coords.coordinates[:, 0],
@@ -73,7 +75,6 @@ for turbine_coords, color, label in turbine_data:
         marker="*",
         label=label,
     )
-
 
 # Adding land, coastline, and borders
 land = cfeature.NaturalEarthFeature(
@@ -150,7 +151,6 @@ ax.plot(
     linewidth=0.8,
 )
 
-# Create custom legend
 legend_elements = [
     Line2D(
         [0], [0],
