@@ -1,6 +1,12 @@
 import numpy as np
 import xarray as xr
 
+'''
+Module for opening text file of turbine coordinates as xArray DataSet.
+
+July 2025, Kjersti Stangeland (kjersti.stangeland@met.no)
+'''
+
 
 def get_turbine_coords(path_to_coords):
     """
@@ -13,8 +19,8 @@ def get_turbine_coords(path_to_coords):
     Output:
     * turb_coords - 'xr.DataSet'
     """
+    
     # Reading in the coordinates of turbines
-
     with open(path_to_coords, "r") as file:
         lines = file.readlines()[5:]
 
