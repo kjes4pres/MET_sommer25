@@ -15,11 +15,32 @@ from netCDF4 import Dataset
 from roppy import SGrid
 from scipy.interpolate import griddata
 
+'''
+Module with various functions for processing output files of 
+- find_deformation_radius.py
+- mld.py
+
+Original datasets from Norkyst v3 - ROMS outputs. 
+
+July 2025, Kjersti Stangeland (kjersti.stangeland@met.no)
+'''
+
 
 def find_indices_of_point(grid, target_lon, target_lat):
     """
     Finds the [y, x] indices of grid point closest to a given coordinate point (lon, lat).
     The model grid is lon(y, x), lat(y, x).
+
+    Parameters:
+        grid            roppy.SGrid() object
+        target_lon      float
+        target_lat      float
+
+    Output:
+        y, x            indices (int)
+
+    Usage
+        y, x = find_indices_of_point(grid, 5.76, 58.9)  
     """
     lon = grid.lon_rho
     lat = grid.lat_rho
@@ -33,6 +54,12 @@ def convert_ocean_time(full_ds):
     """
     Converts ocean_time from seconds since initialization
     to datetime values and assigns it back to the dataset.
+
+    Parameters:
+        full_ds:        xArray.DataSet
+    
+    Output:
+        full_ds:        xArray DataSet
     """
     ocean_time = full_ds.ocean_time.values
     datetime_array = [datetime.fromtimestamp(ot) for ot in ocean_time]
@@ -42,8 +69,17 @@ def convert_ocean_time(full_ds):
 
 def R1_rolling_mean_all(files):
     """
-    Opens all daily files of Rossby deformation radius.
-    Returns a DataArray of the rolling mean with time window 7 days.
+    Opens all daily files of Rossby deformation radius found in:
+    /lustre/storeB/project/nwp/havvind/hav/analysis_kjsta/output_bdr
+
+    Returns a DataArray of the rolling mean of Rossby deformation
+    radius with time window 7 days.
+
+    Parameters:
+        files       list
+    
+    Output:
+        R1_roll     xArray.DataArray
     """
     # Opening all files
     full_ds = xr.open_mfdataset(files)
@@ -59,8 +95,10 @@ def R1_rolling_mean_all(files):
 
 def extract_R1_all(files):
     """
-    Opens all daily files of Rossby deformation radius.
-    Returns DataArray of size (149, 1148, 2747)
+    Opens all daily files of Rossby deformation radius found in:
+    /lustre/storeB/project/nwp/havvind/hav/analysis_kjsta/output_bdr
+
+    Returns xArray DataSet
     """
     # Opening all files
     full_ds = xr.open_mfdataset(files)
@@ -76,8 +114,10 @@ def extract_R1_all(files):
 
 def monthly_mean(files):
     """
-    Opens all daily files of Rossby deformation radius.
-    Resamples and take the monthly mean. Time dim going from 149->5
+    Opens all daily files of Rossby deformation radius found in:
+    /lustre/storeB/project/nwp/havvind/hav/analysis_kjsta/output_bdr
+
+    Resamples and take the monthly mean. With time dimension going from 149->5
 
     """
     # Opening all files
@@ -85,7 +125,7 @@ def monthly_mean(files):
 
     # Converting ocean_time from seconds since initialization to datetime values
     full_ds = convert_ocean_time(full_ds)
-
+    
     ds_monthly = full_ds.resample(ocean_time="1M").mean(dim="ocean_time")
 
     return ds_monthly
@@ -93,9 +133,17 @@ def monthly_mean(files):
 
 def monthly_mean_area(files, grid, area_lon, area_lat):
     """
-    Opens all daily files of Rossby deformation radius.
-    Returns the horizontal mean of the radius of a given area.
-    Area chosen around the windpark.
+    Opens all daily files of Rossby deformation radius found in:
+    /lustre/storeB/project/nwp/havvind/hav/analysis_kjsta/output_bdr
+
+    Returns the horizontal mean of the Rossby deformation
+    radius of a given area.
+
+    Parameters:
+        files       list
+        grid        roppy.Sgrid object  
+        area_lon    tuple (min_lon, max_lon)
+        area_lat    tuple (min_lat, max_lat)
     """
     full_ds = xr.open_mfdataset(files)
 
@@ -160,9 +208,6 @@ def make_region_ds(files, grid, area_lon, area_lat):
     # Convert ocean_time to datetime
     full_ds = convert_ocean_time(full_ds)
 
-    # Load grid lat/lon
-    # fid = Dataset('/lustre/storeB/project/nwp/havvind/hav/results/reference/REF-02/norkyst_avg_0001.nc')
-    # grid = SGrid(fid)
 
     lon = np.asarray(grid.lon_rho)
     lat = np.asarray(grid.lat_rho)
