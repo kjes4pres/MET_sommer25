@@ -78,7 +78,7 @@ def calc_pea(mfile, zfile):
     if base_filename.endswith('_mld'):
         base_filename = base_filename[:-4]
 
-    filename = f"{base_filename}_pea.nc"
+    filename = f"{base_filename}_pea_try.nc"
     outputf = '/lustre/storeB/project/nwp/havvind/hav/analysis_kjsta/output_pea/tests/' + filename
 
     rootgrp = Dataset(outputf, 'w')
@@ -106,19 +106,30 @@ def calc_pea(mfile, zfile):
             if not mask[y, x]:  # skipping land points
                continue
 
-            t = -1
+            tmpea[0, y, x] = 0
+            tmpmaxdepth = maxdepth[0, y, x]
+
             # Filtering out local water depth on the zlevs
             # Where zlevs is shallower than z_r -> true
-            valid_z_mask = zlevs > z_r[:, y, x].min()
-            z = zlevs[valid_z_mask]
+            valid_z_mask = zlevs > maxdepth[0, y, x]
+            tmpz = zlevs[valid_z_mask]
 
-            dz = np.diff(z, axis=0)
+            # Matching rho with valid z levels
+            tmprho = rho[0, :tmpz.shape[0], y, x]
 
-            z_mid = (z[0:-1] + z[1:]) / 2  # Midpoints between z-levels
+            z_depth = (tmpz[0:-1] + tmpz[1:]) / 2
 
-            integrand = -g*np.max(rhoref-rho[:, y, x],0)*z_mid/rhoref
+            # Integrand
+            P = g*((rhoref-tmprho)/rhoref)*tmpz
 
-            tmpea[:, y, x] = np.sum(integrand*dz, axis=0)
+            # Total depth 
+            H = zeta[0, y, x] - tmpz.min()
+
+            # Integrating rho over z-levels
+            for k in range(0, len(z_depth) - 1):
+                tmpea[0, y, x] = tmpea[0, y, x] + np.abs(z_depth[k] - z_depth[k + 1]) / 2.0 * (P[k] + P[k + 1])
+                tmpea[0, y, x] = tmpea[0, y, x]/H
+
 
     rootgrp = Dataset(outputf, 'r+')
     pea = rootgrp.variables['pea']
