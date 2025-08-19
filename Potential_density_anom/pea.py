@@ -36,15 +36,14 @@ def calc_pea(mfile, zfile):
     '''
     ...
     '''
-
-    print(mfile)
-    
+    # Dataset containing potential density
     ds = Dataset(mfile)
-
+    # Dataset contaning zeta
     ds2 = Dataset(zfile)
+    # Grid
     grid = SGrid(ds2) 
 
-    # Depths to interpolate to
+    # Depths where potential density was interpolated to
     zlevs = np.arange(0,51,1)
     zlevs = np.insert(zlevs,len(zlevs),values=np.arange(52,102,2), axis =0)
     zlevs = np.insert(zlevs,len(zlevs),values=np.arange(105,305,5), axis =0)
@@ -57,20 +56,11 @@ def calc_pea(mfile, zfile):
     # Variables
     ocean_time = ds.variables['ocean_time']
     rho  = ds.variables['pd'][:] + 1000
-    mask = grid.mask_rho[:,:]
+    landmask = grid.mask_rho[:,:]
     zeta = ds2.variables['zeta'][:]
     g = 9.81
     rhoref = 1027.0
-    maxdepth = ds.variables['mld'][:]
-
-    # Depth of rho-points: z_r
-    # Adding zero to end of array (surface)
-    z_r = np.insert(grid.z_r, grid.z_r.shape[0], values = np.zeros_like(grid.h), axis=0)
-    # Adding free surface height to z_r
-    z_r[-1] = zeta[0, :, :]
-    # Adding local water depth to beginning of array
-    z_r = np.insert(z_r, 0, values = -1.*grid.h, axis=0)
-
+    D = np.ones((1, rho.shape[2], rho.shape[3])) * -20  # Maximum depth for integration
 
     # Making a file to write to
     base_filename = mfile.split('/')[-1][:-3]
@@ -78,7 +68,7 @@ def calc_pea(mfile, zfile):
     if base_filename.endswith('_mld'):
         base_filename = base_filename[:-4]
 
-    filename = f"{base_filename}_pea_try.nc"
+    filename = f"{base_filename}_pea_testing19085.nc"
     outputf = '/lustre/storeB/project/nwp/havvind/hav/analysis_kjsta/output_pea/tests/' + filename
 
     rootgrp = Dataset(outputf, 'w')
@@ -101,35 +91,33 @@ def calc_pea(mfile, zfile):
     ds.close()
 
     # Looping through grid points
-    for y in range(0, rho.shape[2]):
-        for x in range(0, rho.shape[3]): 
-            if not mask[y, x]:  # skipping land points
-               continue
+    for y in range(rho.shape[2]):
+        for x in range(rho.shape[3]): 
+            if not landmask[y, x]:
+                continue
 
-            tmpea[0, y, x] = 0
-            tmpmaxdepth = maxdepth[0, y, x]
+            tmpea[0, y, x] = 0.0
 
-            # Filtering out local water depth on the zlevs
-            # Where zlevs is shallower than z_r -> true
-            valid_z_mask = zlevs > maxdepth[0, y, x]
+            # Integration bounds: bottom to surface
+            zmin = D[0, y, x] + zeta[0, y, x]  # bottom depth
+            zmax = zeta[0, y, x]                          # free surface
+
+            # Select z-levels within bounds
+            valid_z_mask = (zlevs >= zmin) & (zlevs <= zmax)
             tmpz = zlevs[valid_z_mask]
 
-            # Matching rho with valid z levels
+            if tmpz.size == 0:
+                continue
+
+            # Match rho with z-levels
             tmprho = rho[0, :tmpz.shape[0], y, x]
 
-            z_depth = (tmpz[0:-1] + tmpz[1:]) / 2
-
             # Integrand
-            P = g*((rhoref-tmprho)/rhoref)*tmpz
+            P = -g * tmpz * ((rhoref - tmprho) / rhoref)
 
-            # Total depth 
-            H = zeta[0, y, x] - tmpz.min()
-
-            # Integrating rho over z-levels
-            for k in range(0, len(z_depth) - 1):
-                tmpea[0, y, x] = tmpea[0, y, x] + np.abs(z_depth[k] - z_depth[k + 1]) / 2.0 * (P[k] + P[k + 1])
-                tmpea[0, y, x] = tmpea[0, y, x]/H
-
+            # Integrate
+            tmpea[0, y, x] = np.trapz(P, tmpz)
+    
 
     rootgrp = Dataset(outputf, 'r+')
     pea = rootgrp.variables['pea']
